@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { postsService, Post } from '@/services/firestore';
+import type { Post } from '@/services/firestore';
 import { 
   Plus, 
   Loader,
@@ -29,12 +29,48 @@ export default function Posts() {
   const [category, setCategory] = useState<'event' | 'announcement' | 'discussion'>('event');
 
   useEffect(() => {
-    loadPosts();
+    // Real-time subscription to posts collection so posts created on other devices appear immediately
+    let unsub: (() => void) | undefined;
+    (async () => {
+      try {
+        const { collection, query, orderBy, onSnapshot } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        if (db) {
+          const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+          unsub = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+            setPosts(data);
+            setLoading(false);
+          }, (err) => {
+            console.error('Posts realtime error', err);
+            setLoading(false);
+            toast.error('Failed to load posts');
+          });
+        } else {
+          // Fallback to one-time fetch
+          loadPosts();
+        }
+      } catch (err) {
+        console.error('Failed to subscribe to posts', err);
+        loadPosts();
+      }
+    })();
+
+    return () => {
+      if (unsub) {
+        try {
+          unsub();
+        } catch (e) {
+          console.error('Error unsubscribing from posts', e);
+        }
+      }
+    };
   }, []);
 
   const loadPosts = async () => {
     setLoading(true);
     try {
+      const { postsService } = await import('@/services/firestore');
       const fetchedPosts = await postsService.getAll();
       setPosts(fetchedPosts);
     } catch (error) {
@@ -56,6 +92,7 @@ export default function Posts() {
     }
 
     try {
+      const { postsService } = await import('@/services/firestore');
       await postsService.create({
         title,
         content,
@@ -80,6 +117,7 @@ export default function Posts() {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
     try {
+      const { postsService } = await import('@/services/firestore');
       await postsService.delete(postId);
       toast.success('Post deleted');
       loadPosts();
@@ -123,7 +161,7 @@ export default function Posts() {
                 </div>
                 <div>
                   <Label>Category</Label>
-                  <Select value={category} onValueChange={(v: any) => setCategory(v)}>
+                  <Select value={category} onValueChange={(v: string) => setCategory(v as 'event' | 'announcement' | 'discussion')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -162,7 +200,7 @@ export default function Posts() {
               className="pl-9"
             />
           </div>
-          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+          <Select value={filter} onValueChange={(v: string) => setFilter(v as 'all' | 'event' | 'announcement' | 'discussion')}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue />

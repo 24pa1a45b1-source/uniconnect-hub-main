@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { marketplaceService, MarketplaceItem } from '@/services/firestore';
+import type { MarketplaceItem } from '@/services/firestore';
 import { 
   Plus, 
   ShoppingBag, 
@@ -28,6 +29,7 @@ const conditions: Array<'new' | 'like-new' | 'good' | 'fair' | 'poor'> = ['new',
 
 export default function Marketplace() {
   const { user } = useAuth();
+  const { buyItem } = useData();
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -48,6 +50,7 @@ export default function Marketplace() {
   const loadItems = async () => {
     setLoading(true);
     try {
+      const { marketplaceService } = await import('@/services/firestore');
       const fetchedItems = await marketplaceService.getAll();
       setItems(fetchedItems);
     } catch (error) {
@@ -69,6 +72,7 @@ export default function Marketplace() {
     }
 
     try {
+      const { marketplaceService } = await import('@/services/firestore');
       await marketplaceService.create({
         title,
         description,
@@ -97,6 +101,7 @@ export default function Marketplace() {
 
   const handleMarkAsSold = async (itemId: string) => {
     try {
+      const { marketplaceService } = await import('@/services/firestore');
       await marketplaceService.update(itemId, { isSold: true });
       toast.success('Item marked as sold!');
       loadItems();
@@ -108,6 +113,7 @@ export default function Marketplace() {
   const handleDelete = async (itemId: string) => {
     if (!confirm('Are you sure?')) return;
     try {
+      const { marketplaceService } = await import('@/services/firestore');
       await marketplaceService.delete(itemId);
       toast.success('Item deleted');
       loadItems();
@@ -186,7 +192,7 @@ export default function Marketplace() {
                   </div>
                   <div>
                     <Label>Condition</Label>
-                    <Select value={condition} onValueChange={(v: any) => setCondition(v)}>
+                    <Select value={condition} onValueChange={(v: string) => setCondition(v as 'new' | 'like-new' | 'good' | 'fair' | 'poor')}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -219,7 +225,7 @@ export default function Marketplace() {
               className="pl-9"
             />
           </div>
-          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+          <Select value={filter} onValueChange={(v: string) => setFilter(v as 'all' | 'available' | 'sold')}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue />
@@ -315,14 +321,23 @@ export default function Marketplace() {
                     )}
 
                     {!isOwner && !item.isSold && (
-                      <Button
-                        className="w-full"
-                        variant="default"
-                        onClick={() => toast.info(`Contact ${item.sellerName} to purchase`)}
-                      >
-                        <ShoppingBag className="w-4 h-4" />
-                        Contact Seller
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          className="flex-1"
+                          variant="default"
+                          onClick={() => toast.info(`Contact ${item.sellerName} to purchase`)}
+                        >
+                          <ShoppingBag className="w-4 h-4" />
+                          Contact Seller
+                        </Button>
+                        <Button
+                          className="flex-0"
+                          variant="gradient"
+                          onClick={() => buyItem(item.id)}
+                        >
+                          Buy Now
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

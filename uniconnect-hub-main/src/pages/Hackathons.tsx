@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { hackathonsService, Hackathon } from '@/services/firestore';
+import type { Hackathon } from '@/services/firestore';
 import {
   Plus,
   Search,
@@ -19,6 +19,28 @@ import {
   Clock,
   Loader,
 } from 'lucide-react';
+
+function toDateValue(v: unknown): Date {
+  if (!v) return new Date(0);
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(v);
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (v && typeof v === 'object') {
+    try {
+      const obj = v as Record<string, unknown>;
+      if ('toDate' in obj && typeof (obj as { toDate?: unknown }).toDate === 'function') {
+        return (obj as { toDate: () => Date }).toDate();
+      }
+      if (typeof obj.seconds === 'number') return new Date((obj.seconds as number) * 1000);
+    } catch (e) {
+      console.warn('toDateValue parse error', e);
+    }
+  }
+  return new Date(String(v || ''));
+}
 
 export default function Hackathons() {
   const { user } = useAuth();
@@ -44,6 +66,7 @@ export default function Hackathons() {
   const loadHackathons = async () => {
     setLoading(true);
     try {
+      const { hackathonsService } = await import('@/services/firestore');
       const list = await hackathonsService.getAll();
       setHackathons(list);
     } catch (e) {
@@ -71,6 +94,7 @@ export default function Hackathons() {
 
     try {
       console.log('Creating hackathon with user:', user.uid);
+      const { hackathonsService } = await import('@/services/firestore');
       await hackathonsService.create({
         title: title.trim(),
         description: description.trim(),
@@ -110,6 +134,7 @@ export default function Hackathons() {
     }
 
     try {
+      const { hackathonsService } = await import('@/services/firestore');
       await hackathonsService.applyToHackathon(hackathonId, user.uid);
       toast.success('Applied to hackathon successfully!');
       loadHackathons();
@@ -125,6 +150,7 @@ export default function Hackathons() {
     }
 
     try {
+      const { hackathonsService } = await import('@/services/firestore');
       await hackathonsService.removeApplicant(hackathonId, user.uid);
       toast.success('Withdrawn from hackathon');
       loadHackathons();
@@ -218,8 +244,8 @@ export default function Hackathons() {
             {filteredHackathons.map((hackathon) => {
               const isOrganizer = hackathon.organizerId === user?.uid;
               const hasApplied = hackathon.applicants?.includes(user?.uid || '') || false;
-              const startDateObj = hackathon.startDate instanceof Date ? hackathon.startDate : (hackathon.startDate as any)?.toDate?.() || new Date();
-              const endDateObj = hackathon.endDate instanceof Date ? hackathon.endDate : (hackathon.endDate as any)?.toDate?.() || new Date();
+              const startDateObj = toDateValue(hackathon.startDate);
+              const endDateObj = toDateValue(hackathon.endDate);
 
               return (
                 <div key={hackathon.id} className="border rounded-lg p-5 hover:shadow-lg transition-shadow">

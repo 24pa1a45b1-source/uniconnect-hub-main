@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function Borrow() {
   const { user } = useAuth();
-  const { borrowItems, addBorrowItem, borrowItem, returnItem } = useData();
+  const { borrowItems, addBorrowItem, borrowItem, returnItem, claimGiveItem } = useData();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'available' | 'borrowed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,11 +38,14 @@ export default function Borrow() {
   const [price, setPrice] = useState('');
   const [availableFrom, setAvailableFrom] = useState('');
   const [availableTo, setAvailableTo] = useState('');
+  const [listingType, setListingType] = useState<'borrow' | 'give'>('borrow');
+  
 
   const filteredItems = borrowItems.filter(item => {
     if (filter === 'available' && item.status !== 'available') return false;
     if (filter === 'borrowed' && item.status !== 'borrowed') return false;
-    if (searchQuery && !item.item.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    const hay = (item.item || item.title || '').toLowerCase();
+    if (searchQuery && !hay.includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -53,12 +56,14 @@ export default function Borrow() {
     }
 
     addBorrowItem({
+      title: itemName.trim(),
       item: itemName.trim(),
       description: description.trim(),
       price: isFriendOnly ? 0 : parseFloat(price) || 0,
       availableFrom,
       availableTo,
       isFriendOnly,
+      type: listingType,
     });
 
     toast.success('Item listed successfully!');
@@ -112,6 +117,27 @@ export default function Borrow() {
                     value={itemName}
                     onChange={(e) => setItemName(e.target.value)}
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setListingType('borrow')}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      listingType === 'borrow' ? 'border-primary bg-primary/10 text-primary' : 'border-border'
+                    }`}
+                  >
+                    Borrow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setListingType('give')}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      listingType === 'give' ? 'border-success bg-success/10 text-success' : 'border-border'
+                    }`}
+                  >
+                    Give Away
+                  </button>
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -211,7 +237,7 @@ export default function Borrow() {
                       }`} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground line-clamp-1">{item.item}</h3>
+                      <h3 className="font-semibold text-foreground line-clamp-1">{item.title || item.item}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
                           item.status === 'available' 
@@ -257,7 +283,13 @@ export default function Borrow() {
                     </p>
                   )}
 
-                  {item.status === 'available' && !isOwner && (
+                  {item.type === 'give' && item.status === 'available' && !isOwner && (
+                    <Button onClick={() => claimGiveItem(item.id)} className="w-full">
+                      Claim Item
+                    </Button>
+                  )}
+
+                  {item.type !== 'give' && item.status === 'available' && !isOwner && (
                     <Button
                       onClick={() => handleBorrow(item.id)}
                       variant="default"

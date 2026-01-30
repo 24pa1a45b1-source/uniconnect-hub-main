@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,16 @@ export default function ProfileSetup() {
   const [branch, setBranch] = useState('');
   const [year, setYear] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Prefill profile if available (from AuthContext which now reads Firestore)
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name || '');
+    setCollege(user.college || '');
+    setDepartment(user.department || '');
+    setBranch(user.branch || '');
+    setYear(user.year || '');
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

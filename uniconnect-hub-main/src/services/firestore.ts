@@ -1,18 +1,9 @@
 import { db } from '@/lib/firebase';
-import {
-  collection,
-  addDoc,
-  getDocs,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-  QueryConstraint,
-} from 'firebase/firestore';
+import type { Timestamp, QueryConstraint } from 'firebase/firestore';
+
+async function getFirestoreFns() {
+  return await import('firebase/firestore');
+}
 
 export interface Post {
   id?: string;
@@ -125,6 +116,10 @@ export interface Hackathon {
 export const postsService = {
   async create(post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, addDoc, Timestamp } = fs;
       const docRef = await addDoc(collection(db, 'posts'), {
         ...post,
         createdAt: Timestamp.now(),
@@ -141,6 +136,10 @@ export const postsService = {
 
   async getAll(constraints: QueryConstraint[] = []) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, query, orderBy, getDocs } = fs;
       const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), ...constraints);
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
@@ -152,6 +151,10 @@ export const postsService = {
 
   async getById(postId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, getDoc } = fs;
       const docSnap = await getDoc(doc(db, 'posts', postId));
       return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Post : null;
     } catch (error) {
@@ -162,6 +165,10 @@ export const postsService = {
 
   async update(postId: string, updates: Partial<Post>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, updateDoc, Timestamp } = fs;
       await updateDoc(doc(db, 'posts', postId), {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -174,6 +181,10 @@ export const postsService = {
 
   async delete(postId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'posts', postId));
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -186,6 +197,10 @@ export const postsService = {
 export const marketplaceService = {
   async create(item: Omit<MarketplaceItem, 'id' | 'createdAt'>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, addDoc, Timestamp } = fs;
       const docRef = await addDoc(collection(db, 'marketplace'), {
         ...item,
         createdAt: Timestamp.now(),
@@ -199,6 +214,10 @@ export const marketplaceService = {
 
   async getAll() {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, query, where, orderBy, getDocs } = fs;
       const q = query(collection(db, 'marketplace'), where('isSold', '==', false), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MarketplaceItem));
@@ -210,6 +229,10 @@ export const marketplaceService = {
 
   async update(itemId: string, updates: Partial<MarketplaceItem>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, updateDoc } = fs;
       await updateDoc(doc(db, 'marketplace', itemId), updates);
     } catch (error) {
       console.error('Error updating marketplace item:', error);
@@ -219,6 +242,10 @@ export const marketplaceService = {
 
   async delete(itemId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'marketplace', itemId));
     } catch (error) {
       console.error('Error deleting marketplace item:', error);
@@ -231,6 +258,10 @@ export const marketplaceService = {
 export const lostFoundService = {
   async create(item: Omit<LostFoundItem, 'id' | 'createdAt'>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, addDoc, Timestamp } = fs;
       const docRef = await addDoc(collection(db, 'lostfound'), {
         ...item,
         createdAt: Timestamp.now(),
@@ -244,6 +275,10 @@ export const lostFoundService = {
 
   async getAll() {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, query, where, orderBy, getDocs } = fs;
       const q = query(collection(db, 'lostfound'), where('resolved', '==', false), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LostFoundItem));
@@ -255,6 +290,10 @@ export const lostFoundService = {
 
   async update(itemId: string, updates: Partial<LostFoundItem>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, updateDoc } = fs;
       await updateDoc(doc(db, 'lostfound', itemId), updates);
     } catch (error) {
       console.error('Error updating lost/found item:', error);
@@ -264,6 +303,10 @@ export const lostFoundService = {
 
   async delete(itemId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'lostfound', itemId));
     } catch (error) {
       console.error('Error deleting lost/found item:', error);
@@ -276,6 +319,8 @@ export const lostFoundService = {
 export const borrowService = {
   async create(item: Omit<BorrowItem, 'id' | 'createdAt'>) {
     try {
+      const fs = await getFirestoreFns();
+      const { collection, addDoc, Timestamp } = fs;
       const docRef = await addDoc(collection(db, 'borrow'), {
         ...item,
         createdAt: Timestamp.now(),
@@ -289,6 +334,8 @@ export const borrowService = {
 
   async getAll() {
     try {
+      const fs = await getFirestoreFns();
+      const { collection, query, where, orderBy, getDocs } = fs;
       const q = query(collection(db, 'borrow'), where('status', '==', 'available'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowItem));
@@ -300,6 +347,8 @@ export const borrowService = {
 
   async update(itemId: string, updates: Partial<BorrowItem>) {
     try {
+      const fs = await getFirestoreFns();
+      const { doc, updateDoc } = fs;
       await updateDoc(doc(db, 'borrow', itemId), updates);
     } catch (error) {
       console.error('Error updating borrow item:', error);
@@ -309,6 +358,8 @@ export const borrowService = {
 
   async delete(itemId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'borrow', itemId));
     } catch (error) {
       console.error('Error deleting borrow item:', error);
@@ -321,6 +372,10 @@ export const borrowService = {
 export const helpService = {
   async create(request: Omit<HelpRequest, 'id' | 'createdAt'>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, addDoc, Timestamp } = fs;
       const docRef = await addDoc(collection(db, 'help'), {
         ...request,
         createdAt: Timestamp.now(),
@@ -335,6 +390,10 @@ export const helpService = {
 
   async getAll() {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { collection, query, where, orderBy, getDocs } = fs;
       const q = query(collection(db, 'help'), where('requestStatus', '==', 'open'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HelpRequest));
@@ -346,6 +405,10 @@ export const helpService = {
 
   async update(requestId: string, updates: Partial<HelpRequest>) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, updateDoc } = fs;
       await updateDoc(doc(db, 'help', requestId), updates);
     } catch (error) {
       console.error('Error updating help request:', error);
@@ -355,6 +418,10 @@ export const helpService = {
 
   async delete(requestId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const fb = await import('@/lib/firebase');
+      const { db } = await fb.initFirebase();
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'help', requestId));
     } catch (error) {
       console.error('Error deleting help request:', error);
@@ -367,6 +434,8 @@ export const helpService = {
 export const emergencyService = {
   async create(alert: Omit<EmergencyAlert, 'id' | 'createdAt'>) {
     try {
+      const fs = await getFirestoreFns();
+      const { collection, addDoc, Timestamp } = fs;
       const docRef = await addDoc(collection(db, 'emergency'), {
         ...alert,
         createdAt: Timestamp.now(),
@@ -381,6 +450,8 @@ export const emergencyService = {
 
   async getAll() {
     try {
+      const fs = await getFirestoreFns();
+      const { collection, query, orderBy, getDocs } = fs;
       const q = query(collection(db, 'emergency'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EmergencyAlert));
@@ -392,6 +463,8 @@ export const emergencyService = {
 
   async update(alertId: string, updates: Partial<EmergencyAlert>) {
     try {
+      const fs = await getFirestoreFns();
+      const { doc, updateDoc } = fs;
       await updateDoc(doc(db, 'emergency', alertId), updates);
     } catch (error) {
       console.error('Error updating emergency alert:', error);
@@ -401,6 +474,9 @@ export const emergencyService = {
 
   async delete(alertId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const { db } = await import('@/lib/firebase');
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'emergency', alertId));
     } catch (error) {
       console.error('Error deleting emergency alert:', error);
@@ -413,7 +489,9 @@ export const emergencyService = {
 export const hackathonsService = {
   async create(hackathon: Omit<Hackathon, 'id' | 'createdAt'>) {
     try {
-      console.log('hackathonsService.create called, db is:', db ? 'initialized' : 'NULL');
+      const fs = await getFirestoreFns();
+      const { db } = await import('@/lib/firebase');
+      const { collection, addDoc, Timestamp } = fs;
       if (!db) {
         throw new Error('Firebase Firestore is not initialized. Check VITE_FIREBASE_* environment variables.');
       }
@@ -431,6 +509,9 @@ export const hackathonsService = {
 
   async getAll() {
     try {
+      const fs = await getFirestoreFns();
+      const { db } = await import('@/lib/firebase');
+      const { collection, query, orderBy, getDocs } = fs;
       const q = query(collection(db, 'hackathons'), orderBy('startDate', 'asc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hackathon));
@@ -442,6 +523,9 @@ export const hackathonsService = {
 
   async getById(hackathonId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const { db } = await import('@/lib/firebase');
+      const { doc, getDoc } = fs;
       const docSnap = await getDoc(doc(db, 'hackathons', hackathonId));
       return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Hackathon : null;
     } catch (error) {
@@ -452,6 +536,9 @@ export const hackathonsService = {
 
   async update(hackathonId: string, updates: Partial<Hackathon>) {
     try {
+      const fs = await getFirestoreFns();
+      const { db } = await import('@/lib/firebase');
+      const { doc, updateDoc } = fs;
       await updateDoc(doc(db, 'hackathons', hackathonId), updates);
     } catch (error) {
       console.error('Error updating hackathon:', error);
@@ -461,6 +548,9 @@ export const hackathonsService = {
 
   async delete(hackathonId: string) {
     try {
+      const fs = await getFirestoreFns();
+      const { db } = await import('@/lib/firebase');
+      const { doc, deleteDoc } = fs;
       await deleteDoc(doc(db, 'hackathons', hackathonId));
     } catch (error) {
       console.error('Error deleting hackathon:', error);

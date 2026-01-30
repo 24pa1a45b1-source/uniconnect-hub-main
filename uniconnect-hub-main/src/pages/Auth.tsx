@@ -9,13 +9,17 @@ import { GraduationCap, Briefcase, Mail, Lock, ArrowRight, Sparkles, Users, Zap 
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { login, signup } = useAuth();
+  const { login, signup, resetPassword, migrateLocalUsersToFirebase } = useAuth();
   
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationResults, setMigrationResults] = useState<Array<{ email?: string; status: string; reason?: string; error?: string }> | null>(null);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,14 +33,18 @@ export default function Auth() {
     
     try {
       if (isLogin) {
-        const result = await login(email, password);
-        if (result.success) {
-          toast.success('Welcome back!');
-          navigate('/dashboard');
+        if (showReset) {
+          await handlePasswordReset();
         } else {
-          toast.error(result.error || 'Login failed');
+          const result = await login(email, password);
+          if (result.success) {
+            toast.success('Welcome back!');
+            navigate('/dashboard');
+          } else {
+            toast.error(result.error || 'Login failed');
+          }
         }
-      } else {
+      } else if (!showReset) {
         const result = await signup(email, password, role!);
         if (result.success) {
           toast.success('Account created! Please complete your profile.');
@@ -48,6 +56,64 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      toast.error('Please enter your college email to reset password');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await resetPassword(email);
+      if (result.success) {
+        toast.success('If an account exists, a password reset email has been sent.');
+        setShowReset(false);
+      } else {
+        toast.error(result.error || 'Password reset failed');
+      }
+    } catch (err) {
+      console.error('Unexpected error during password reset', err);
+      toast.error('Password reset failed. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMigrate = async () => {
+    if (!migrateLocalUsersToFirebase) {
+      toast.error('Migration function not available');
+      return;
+    }
+    if (!confirm('Migrate local users to Firebase? This will attempt to create accounts in Firebase using stored passwords and will remove local copies on success.')) return;
+
+    setIsMigrating(true);
+    try {
+      const result = await migrateLocalUsersToFirebase({ removeLocal: true });
+      if (!result.success) {
+        toast.error(result.error || result.message || 'Migration failed');
+        return;
+      }
+      const ok = result.migrated ?? 0;
+      const total = (result.results || []).length;
+      toast.success(`${ok}/${total} users migrated. Check the migration report for details.`);
+      console.log('Migration results:', result.results);
+      setMigrationResults(result.results || []);
+      setShowMigrationModal(true);
+    } catch (err) {
+      console.error('Migration unexpected error', err);
+      toast.error('Migration failed. See console for details.');
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const clearLocalUsers = () => {
+    if (!confirm('Clear local mock users from this device? This is irreversible.')) return;
+    localStorage.removeItem('uniconnect_users');
+    localStorage.removeItem('uniconnect_user');
+    toast.success('Local users cleared');
   };
 
   return (
@@ -201,6 +267,45 @@ export default function Auth() {
               </div>
             </div>
 
+            {isLogin && !showReset && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowReset(true)}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
+            {isLogin && showReset && (
+              <div className="space-y-2 p-4 rounded-lg bg-secondary/10 border border-border">
+                <p className="text-sm text-muted-foreground">Enter your college email and we'll send a password reset link.</p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={handlePasswordReset}
+                    disabled={isLoading}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {isLoading ? 'Sending...' : 'Send reset link'}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-0"
+                    onClick={() => setShowReset(false)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <Button
               type="submit"
               className="w-full"
@@ -212,7 +317,7 @@ export default function Auth() {
                 <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
                 <>
-                  {isLogin ? 'Sign In' : 'Create Account'}
+                  {isLogin ? (showReset ? 'Send reset link' : 'Sign In') : 'Create Account'}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -231,6 +336,63 @@ export default function Auth() {
               </span>
             </button>
           </div>
+
+          {import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE === 'true' && (
+            <div className="mt-6 p-4 rounded-lg border border-border bg-secondary/5">
+              <p className="text-sm text-muted-foreground mb-2">Dev utilities</p>
+              <div className="flex gap-2 justify-center">
+                <Button size="sm" variant="outline" onClick={handleMigrate} disabled={isMigrating}>
+                  {isMigrating ? 'Migrating…' : 'Migrate local users to Firebase'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={clearLocalUsers}>
+                  Clear local users
+                </Button>
+              </div>
+
+              {/* Migration report modal */}
+              {showMigrationModal && migrationResults && (
+                <div className="mt-4 p-4 rounded-md border border-border bg-card">
+                  <div className="flex items-center justify-between mb-2">
+                    <strong>Migration Report</strong>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const blob = new Blob([JSON.stringify(migrationResults, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'migration-report.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}>Download</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowMigrationModal(false); setMigrationResults(null); }}>Close</Button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-40 overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-muted-foreground">
+                          <th className="pb-2">Email</th>
+                          <th className="pb-2">Status</th>
+                          <th className="pb-2">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(migrationResults || []).map((r, idx) => (
+                          <tr key={idx} className="border-t border-border">
+                            <td className="py-2">{r.email || '—'}</td>
+                            <td className="py-2">{r.status}</td>
+                            <td className="py-2 text-xs text-muted-foreground">{r.reason || r.error || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
         </div>
       </div>
     </div>

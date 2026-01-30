@@ -1,9 +1,9 @@
-// Firebase initialization
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+// Firebase initialization (lazy/dynamic imports)
+import type { FirebaseApp } from 'firebase/app';
+import type { Analytics } from 'firebase/analytics';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+import type { FirebaseStorage } from 'firebase/storage';
 
 // Load config from Vite environment variables
 const firebaseConfig = {
@@ -16,32 +16,42 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-function hasConfig(cfg: Record<string, any>) {
-  return Object.values(cfg).every((v) => typeof v === 'string' && v.length > 0);
+function hasConfig(cfg: Record<string, unknown>) {
+  return Object.values(cfg).every((v) => typeof v === 'string' && (v as string).length > 0);
 }
 
-let app: any;
-let analytics: any = null;
-let auth: any = null;
-let db: any = null;
-let storage: any = null;
+let app: FirebaseApp | undefined;
+let analytics: Analytics | null = null;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
+let storage: FirebaseStorage | undefined;
+let initialized = false;
 
-if (hasConfig(firebaseConfig)) {
+export async function initFirebase() {
+  if (initialized) return { app, analytics, auth, db, storage };
+  if (!hasConfig(firebaseConfig)) {
+    console.warn('Firebase config is missing or incomplete. Set VITE_FIREBASE_* env variables.');
+    return { app, analytics, auth, db, storage };
+  }
+
   try {
-    // Initialize Firebase only if config is complete
-    app = initializeApp(firebaseConfig as any);
+    const { initializeApp } = await import('firebase/app');
+    const { getAnalytics } = await import('firebase/analytics');
+    const { getAuth } = await import('firebase/auth');
+    const { getFirestore } = await import('firebase/firestore');
+    const { getStorage } = await import('firebase/storage');
 
-    // Analytics only available in browser
-    analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
-
+    app = initializeApp(firebaseConfig as Record<string, string>);
+    try { analytics = typeof window !== 'undefined' ? getAnalytics(app) : null; } catch (e) { analytics = null; }
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    initialized = true;
   } catch (error) {
     console.warn('Firebase initialization error:', error);
   }
-} else {
-  console.warn('Firebase config is missing or incomplete. Set VITE_FIREBASE_* env variables.');
+
+  return { app, analytics, auth, db, storage };
 }
 
 export { app, analytics, auth, db, storage };

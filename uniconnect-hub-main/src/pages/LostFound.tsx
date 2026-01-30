@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { lostFoundService, LostFoundItem } from '@/services/firestore';
+import type { LostFoundItem } from '@/services/firestore';
 import {
   Plus,
   Search,
@@ -22,6 +22,20 @@ import {
   Eye,
   Loader,
 } from 'lucide-react';
+
+// Local helper to normalize Firestore Timestamp / Date values safely
+function toDateValue(v: unknown): Date {
+  if (!v) return new Date(0);
+  if (v instanceof Date) return v;
+  if (typeof v === 'object' && v !== null) {
+    const obj = v as Record<string, unknown>;
+    if ('toDate' in obj && typeof (obj as any).toDate === 'function') {
+      return (obj as { toDate: () => Date }).toDate();
+    }
+    if (typeof obj.seconds === 'number') return new Date((obj.seconds as number) * 1000);
+  }
+  return new Date(String(v));
+} 
 
 export default function LostFound() {
   const { user } = useAuth();
@@ -45,6 +59,7 @@ export default function LostFound() {
   const loadItems = async () => {
     setLoading(true);
     try {
+      const { lostFoundService } = await import('@/services/firestore');
       const list = await lostFoundService.getAll();
       setItems(list);
     } catch (e) {
@@ -70,6 +85,7 @@ export default function LostFound() {
     }
 
     try {
+      const { lostFoundService } = await import('@/services/firestore');
       await lostFoundService.create({
         title: itemName.trim(),
         description: description.trim(),
@@ -82,9 +98,7 @@ export default function LostFound() {
         reporterPhone: '',
         images: [],
         resolved: false,
-        createdAt: new Date(),
       });
-
       toast.success('Report submitted');
       setIsCreateOpen(false);
       setItemName('');
@@ -101,6 +115,7 @@ export default function LostFound() {
   const handleMarkAsFound = async (id?: string) => {
     if (!id) return;
     try {
+      const { lostFoundService } = await import('@/services/firestore');
       await lostFoundService.update(id, { resolved: true });
       toast.success('Marked as resolved');
       loadItems();
@@ -182,7 +197,7 @@ export default function LostFound() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search reports..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
           </div>
-          <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
+          <Select value={filter} onValueChange={(v: string) => setFilter(v as 'all' | 'lost' | 'found')}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue />
@@ -211,7 +226,7 @@ export default function LostFound() {
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-muted-foreground">{it.reporterName}</div>
-                    <div className="text-xs text-muted-foreground">{new Date(it.createdAt?.toDate ? it.createdAt.toDate() : it.createdAt).toLocaleDateString()}</div>
+                    <div className="text-xs text-muted-foreground">{toDateValue(it.createdAt).toLocaleDateString()}</div>
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2">

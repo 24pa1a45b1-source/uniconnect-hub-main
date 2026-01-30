@@ -1,3 +1,4 @@
+import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,10 +64,53 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HomeSafe() {
+  // Minimal, defensive component that does not import any heavy modules.
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center p-6">
+        <h1 className="text-2xl font-bold">UniConnect</h1>
+        <p className="text-muted-foreground mt-2">Home is temporarily in safe mode. If you see this, the app core is running.</p>
+        <p className="text-sm text-muted-foreground mt-2">You can still <a href="/auth" className="text-primary underline">sign in</a> or check the console for errors.</p>
+      </div>
+    </div>
+  );
+}
+
+function ErrorDebugOverlay() {
+  const [err, setErr] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const getLastError = () => (((window as unknown) as { __LAST_ERROR?: string }).__LAST_ERROR || null);
+    const update = () => setErr(getLastError());
+    update();
+    window.addEventListener('error', update);
+    window.addEventListener('unhandledrejection', update);
+    const int = window.setInterval(update, 1000);
+    return () => {
+      window.removeEventListener('error', update);
+      window.removeEventListener('unhandledrejection', update);
+      clearInterval(int);
+    };
+  }, []);
+
+  if (!err) return null;
+
+  return (
+    <div style={{position: 'fixed', right: 12, bottom: 12, zIndex: 9999}}>
+      <div className="max-w-md p-3 rounded bg-red-600 text-white text-sm shadow-lg">
+        <div className="font-semibold">Runtime Error</div>
+        <div className="mt-1 whitespace-pre-wrap text-xs">{err}</div>
+      </div>
+    </div>
+  );
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      {/* Use a minimal safe home route first so the app shows something even if Index has a problem */}
+      <Route path="/" element={<HomeSafe />} />
       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -84,6 +128,7 @@ function AppRoutes() {
   );
 }
 
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -91,6 +136,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-right" theme="dark" />
+          <ErrorDebugOverlay />
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
