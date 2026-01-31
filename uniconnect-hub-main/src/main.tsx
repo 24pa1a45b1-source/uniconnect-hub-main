@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import ErrorBoundary from "./components/ErrorBoundary";
 
 // Global runtime handlers to help catch silent failures in the browser
 window.addEventListener('error', (ev) => {
